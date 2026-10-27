@@ -13,21 +13,25 @@
 Acceptance: the live counter and status change without rebuilding or restarting
 the frontend. Closing the app leaves the supervisor and module running.
 
-## 2. Reliability and module management
+## 2. Reliability and module management — implemented
 
-Add manifests, discovery, module addressing and navigation, always/on-demand
-lifecycle, crash recovery with bounded backoff, executable watching, explicit reload,
-and diagnostics history. Define initialization freshness and module heartbeat policy.
+- Folder/flat manifests, discovery, and up to 32 independent modules.
+- Module-addressed actions, dynamic native navigation, and all-module attention.
+- Always/on-demand/disabled lifecycle, start/stop/reload controls, and headless tools.
+- Crash recovery with bounded backoff and retained stale values.
+- Deployed-file watching, private candidate validation, and safe hot replacement.
+- Predictable in-flight action draining with generation-tagged completion.
+- Optional per-source freshness and bounded diagnostic history.
+- An independent read-only Git project monitor and atomic deployment tooling.
+- Real-process tests for corrupt executables, malformed candidates, ID/binding
+  errors, missing initial data, namespace isolation, recovery, and handover.
 
-For replacement, start and validate a candidate while the old process continues.
-Only promote a candidate after protocol, declarations, view, and initial required
-sources are healthy. Route new actions to the promoted process, let already
-accepted actions finish on their original process, and reject ambiguous retries.
-Candidate state remains isolated until promotion. Failed builds and failed candidates
-leave the old process operational. These semantics are planned, not implemented.
+Acceptance: install two modules without changing the frontend or supervisor;
+rebuild and replace either with the app open; a bad candidate or crash leaves
+unrelated modules operational. Business state continuity belongs to each module.
 
-Acceptance: independently rebuilt modules can replace their running versions, and
-crashes do not affect unrelated modules or the app.
+On-demand modules stop explicitly; idle scheduling is not implemented. State
+and diagnostics remain in memory until the supervisor exits.
 
 ## 3. Attention system
 

@@ -2,47 +2,86 @@
 
 **A window into everything.**
 
-A local, native macOS dashboard for independent modules. Modules describe their UI
-and publish business data; Spiritglass turns that description into SwiftUI controls.
+A local, native macOS control plane for independent modules. Modules describe
+their dashboards and publish business data; Spiritglass turns that description
+into SwiftUI controls.
 
-The first vertical slice is implemented: a Rust supervisor, a Rust module SDK, a
-live example module, and a native macOS application. The app can disconnect and
-reconnect without restarting the module.
+Spiritglass now discovers installed modules, runs them independently, recovers
+from crashes, and replaces running versions only after their replacements pass
+validation. The native menu bar summarizes every active module.
 
-## Run the demo
+## Run it
 
-Requires macOS 14+, Xcode with Swift 6+, Python 3, and a current stable Rust toolchain.
+Requires macOS 14+, Xcode with Swift 6+, Python 3, and current stable Rust.
 
 ```sh
 ./scripts/run-demo.sh
 ```
 
-The script builds the workspace, creates an ad hoc signed app at
-`.build/Spiritglass.app`, starts the supervisor, and opens the dashboard. Try
-**Send a little signal** five times to change the example status, or **Reset**.
-The uptime updates every second. Quit and reopen the app to see that the module
-continues running.
+This builds an ad hoc signed app at .build/Spiritglass.app and atomically
+installs two ordinary modules in ~/.spiritglass/modules:
 
-The system menu bar shows the highest severity among the dashboard's status
-components: green for clear, yellow for notice, red for urgent, and a black lamp
-with a white rim and exclamation mark for emergency. A question mark indicates
-unknown or stale monitoring. Click the lamp to inspect the contributing statuses,
-open the dashboard, or quit. Closing the dashboard leaves the app monitoring in
-the menu bar; use Quit to exit the app.
-The Spiritglass app menu also provides **Show Status** (⇧⌘S) and **Open Dashboard**
-(⌘0). Clicking the Dock icon restores a closed dashboard.
+- **Hello, Spiritglass:** live uptime, counter actions, and an example status.
+- **Project watch:** read-only Git branch, changed/staged/untracked files, local
+  ahead/behind counts, and the latest commit for this project.
 
-The supervisor keeps running after the app closes. The script prints its PID and
-the command to stop it. Logs are in `~/.spiritglass/run/demo.log` and `app.log`.
-Run the script again to reuse the existing supervisor; stop it first to run a
-newly rebuilt module. Automatic hot replacement is a later milestone.
+Open either dashboard from the sidebar. Try Reload to validate and promote a new
+process while the old one keeps running. Rebuilding and redeploying a module
+triggers the same handover automatically. Unchanged example binaries are not
+redeployed, so deploying one does not reset the other.
 
-For separate development sessions:
+The lamp uses green/clear, yellow/notice, red/urgent, and a white-rimmed black
+emergency indicator. Unknown or stale monitoring has a question mark and never
+silently appears green. Click it for contributing statuses, open the dashboard,
+or quit. Closing the window keeps monitoring running. Show Status (⇧⌘S) and
+Open Dashboard (⌘0) are also in the app menu.
+
+The supervisor survives frontend disconnects. The launcher prints its PID and
+stop command. Logs are in ~/.spiritglass/run/demo.log and app.log. If upgrading
+from the first single-module version, stop that old supervisor once before
+running the new launcher.
+
+## Install a module
+
+Create a folder containing its independently built executable and module.json:
+
+```json
+{
+  "id": "dev.example.my-module",
+  "name": "My module",
+  "executable": "module",
+  "args": [],
+  "lifecycle": "always",
+  "enabled": true,
+  "stale_after_ms": 5000
+}
+```
+
+Put the folder inside ~/.spiritglass/modules. Its declaration must return the
+same ID as its manifest. The dashboard appears without changing or rebuilding
+the frontend or supervisor. Flat JSON manifests are supported too.
+
+Paths are relative to the manifest folder. Use an absolute executable path for
+an interpreter and supply its script in args; add script/config/DLL paths to
+watch for automatic reload. There is no shell expansion. Set working_directory
+or environment explicitly when needed.
+
+lifecycle can be always or on_demand. An on-demand module starts when selected
+or activated and stays running until stopped. Set enabled to false to disable a
+module. Optional stale_after_ms marks quiet source values stale; it does not
+assume that an idle process is healthy.
+
+Deploy executables and manifests with atomic rename. A partially written or bad
+candidate must not evict the healthy process. Removing the installed manifest
+uninstalls its module. See [module management](docs/modules.md) for the full loop.
+
+## Develop and inspect
 
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
 cargo build --workspace
-cargo run -p spiritglassd -- --module "$PWD/target/debug/spiritglass-example"
+python3 scripts/install-examples.py
+cargo run -p spiritglassd
 ```
 
 In another terminal:
@@ -51,37 +90,38 @@ In another terminal:
 swift run --package-path apps/macos Spiritglass
 ```
 
-Both use `~/.spiritglass/run/control.sock`. Set `SPIRITGLASS_SOCKET` for a separate
-session. Its parent must be a private directory (mode 700). The daemon also accepts
-`--socket PATH`, and module arguments after `--`.
+Both use ~/.spiritglass/run/control.sock. SPIRITGLASS_SOCKET selects another
+socket; its parent must be private (mode 700). The daemon accepts --modules-dir.
+The demo launcher also accepts SPIRITGLASS_MODULES_DIR.
 
-## Work on a module
+Headless controls:
 
-Start with [`examples/rust-module`](examples/rust-module/src/main.rs). Implement
-the SDK's `Module` trait: declarations, view, current state, and action handler.
-The dashboard tree is fetched once. Source updates change bound values without
-fetching or decoding a new tree. Stable widget IDs preserve SwiftUI identity.
+```sh
+python3 scripts/control.py list
+python3 scripts/control.py reload dev.spiritglass.project
+python3 scripts/control.py action dev.spiritglass.example increment
+```
 
-Exercise a module without the app or supervisor:
+Start with [the Rust example](examples/rust-module/src/main.rs) or the
+[project monitor](modules/project-monitor/src/main.rs). An SDK is optional:
+any executable can speak the [module protocol](docs/protocol.md) on stdin/stdout.
 
 ```sh
 python3 scripts/module_harness.py --action increment target/debug/spiritglass-example
 ```
 
-An SDK is optional. Any executable that speaks the [documented protocol](docs/protocol.md)
-on stdin/stdout can be a module. Stderr is for diagnostics.
-
-## Check the project
+## Verify
 
 ```sh
 ./scripts/check.sh
 ```
 
-This checks Rust formatting and linting, protocol/schema compatibility, socket
-lifecycle, live actions, reconnection, failed modules, malformed messages, and Swift
-binding behavior against a shared Rust-generated snapshot. CI runs the same checks.
+Checks include Rust formatting/linting, schemas and shared Rust/Swift wire
+fixtures, real-process crash recovery, malformed modules, reconnects, atomic
+deployment, failed replacements, on-demand lifecycle, freshness, action
+namespaces, in-flight handover, and native binding/attention behavior.
 
-Regenerate the checked-in schema after changing wire types:
+Regenerate both protocol schemas after changing wire types:
 
 ```sh
 cargo run -p spiritglass-protocol --bin export-schema
@@ -91,16 +131,16 @@ cargo run -p spiritglass-protocol --bin export-schema
 
 | Location | Responsibility |
 | --- | --- |
-| `apps/macos/` | SwiftUI app, native renderer, Unix socket client |
-| `crates/spiritglassd/` | Process supervision, validated routing, retained state |
-| `crates/spiritglass-protocol/` | Wire models, validation, schema exporter |
-| `crates/spiritglass-sdk/` | Rust module runtime and typed UI properties |
-| `examples/rust-module/` | Live uptime, counter actions, example status |
-| `protocol/` | JSON Schema and shared wire fixture |
-| `scripts/` | Build, launch, module harness, integration checks |
+| apps/macos/ | Native app, recursive renderer, socket client, status popover |
+| crates/spiritglassd/ | Discovery, process generations, routing, retained state |
+| crates/spiritglass-protocol/ | Module v1 and client v2 wire models and validation |
+| crates/spiritglass-sdk/ | Rust module runtime and typed UI properties |
+| examples/rust-module/ | Counter and status example |
+| modules/project-monitor/ | Independent, read-only Git project monitor |
+| protocol/ | Generated schemas and shared wire fixtures |
+| scripts/ | Build, atomic deployment, controls, and verification |
 
 The [initial specification](docs/initial-specification.md),
-[architecture decisions](docs/architecture.md), and [roadmap](docs/roadmap.md)
-describe the larger project. Manifest discovery, multiple modules, automatic
-restart/hot replacement, persisted alert aggregation and notifications, richer
-widgets, two-way inputs, and C# interoperability remain future work.
+[architecture](docs/architecture.md), and [roadmap](docs/roadmap.md) describe the
+larger project. Persisted alerts, acknowledgment/snoozing, notifications, richer
+widgets, editable bindings, and a C# SDK/example remain future work.

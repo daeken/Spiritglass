@@ -64,4 +64,28 @@ public struct AttentionSummary: Equatable, Sendable {
         if unknown && severity == .clear { severity = nil }
         return Self(severity: severity, hasUnknown: unknown, items: items)
     }
+
+    public static func resolve(catalog: SessionSnapshot?, connected: Bool) -> Self {
+        guard let catalog else { return Self(severity: nil, hasUnknown: true, items: []) }
+        var items: [AttentionItem] = []
+        var unknown = !connected || !catalog.diagnostics.isEmpty
+        for module in catalog.orderedModules where module.enabled && module.phase != "dormant" {
+            let summary = resolve(snapshot: module.state, connected: connected)
+            unknown = unknown || summary.hasUnknown
+            if summary.items.isEmpty {
+                items.append(AttentionItem(id: "\(module.id)::health", label: module.name, severity: nil, availability: .unavailable))
+            }
+            items += summary.items.map { AttentionItem(id: "\(module.id)::\($0.id)", label: "\(module.name) · \($0.label)", severity: $0.severity, availability: $0.availability) }
+            if module.reloadError != nil {
+                items.append(AttentionItem(id: "\(module.id)::@replacement", label: "\(module.name) · replacement failed", severity: .notice, availability: .ready))
+            }
+        }
+        for (index, diagnostic) in catalog.diagnostics.enumerated() {
+            items.append(AttentionItem(id: "installation-\(index)", label: diagnostic.message, severity: .notice, availability: .ready))
+        }
+        unknown = unknown || items.isEmpty
+        var severity = items.compactMap(\.severity).max()
+        if unknown && severity == .clear { severity = nil }
+        return Self(severity: severity, hasUnknown: unknown, items: items)
+    }
 }

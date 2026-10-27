@@ -446,6 +446,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "spiritglass-project-monitor"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "spiritglass-protocol",
+ "spiritglass-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "spiritglass-protocol"
 version = "0.1.0"
 dependencies = [

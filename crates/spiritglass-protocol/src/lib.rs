@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
+mod session;
+pub use session::*;
+
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 
@@ -403,7 +406,7 @@ impl Widget {
         Ok(())
     }
 }
-fn validate_id(id: &str) -> Result<()> {
+pub fn validate_id(id: &str) -> Result<()> {
     ensure!(
         !id.is_empty()
             && id.len() <= 128

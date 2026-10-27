@@ -4,22 +4,27 @@ import SwiftUI
 
 @MainActor
 final class SessionStore: ObservableObject {
-    @Published private(set) var snapshot: Snapshot?
+    @Published private(set) var catalog: SessionSnapshot?
+    @Published private(set) var selectedModuleID: String?
     @Published private(set) var connected = false
     @Published private(set) var connectionMessage = "Connecting to your supervisor…"
     @Published private(set) var pendingActions: Set<String> = []
+    @Published private(set) var busyModules: Set<String> = []
     @Published var actionError: String?
     let socketPath: String
     private var connection: UnixConnection?
     private var generation = UUID()
     private var nextID = 3
-    private var actions: [Int: String] = [:]
-    private var actionTimeouts: [Int: Task<Void, Never>] = [:]
+    private var actions: [Int: (key: String, moduleID: String, generation: UInt64)] = [:]
+    private var controls: [Int: String] = [:]
+    private var timeouts: [Int: Task<Void, Never>] = [:]
     private var reconnect: Task<Void, Never>?
     private var handshakeTimeout: Task<Void, Never>?
     private var receiver: Task<Void, Never>?
 
-    var attention: AttentionSummary { AttentionSummary.resolve(snapshot: snapshot, connected: connected) }
+    var selectedModule: ManagedModule? { selectedModuleID.flatMap { catalog?.modules[$0] } }
+    var snapshot: Snapshot? { selectedModule?.state }
+    var attention: AttentionSummary { AttentionSummary.resolve(catalog: catalog, connected: connected) }
 
     init() {
         socketPath = ProcessInfo.processInfo.environment["SPIRITGLASS_SOCKET"] ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".spiritglass/run/control.sock").path
@@ -27,11 +32,17 @@ final class SessionStore: ObservableObject {
     func start() { guard connection == nil else { return }; connect() }
     func stop() {
         generation = UUID()
-        reconnect?.cancel(); handshakeTimeout?.cancel()
-        receiver?.cancel()
+        reconnect?.cancel(); handshakeTimeout?.cancel(); receiver?.cancel()
         connection?.close(); connection = nil
         connected = false
-        clearActions()
+        clearRequests()
+    }
+    func selectModule(_ id: String?) {
+        selectedModuleID = id
+        if let id, catalog?.modules[id]?.phase == "dormant" { control("module.activate", moduleID: id) }
+    }
+    func isPending(_ widgetID: String) -> Bool {
+        pendingActions.contains("\(selectedModuleID ?? "")::\(widgetID)")
     }
     private func connect() {
         generation = UUID()
@@ -68,22 +79,21 @@ final class SessionStore: ObservableObject {
             if let method = message["method"]?.string {
                 guard let params = message["params"] else { throw SessionError.invalidMessage }
                 switch method {
-                case "session.snapshot": try apply(params.decode(Snapshot.self))
+                case "session.snapshot": try apply(params.decode(SessionSnapshot.self))
                 case "state.changed":
-                    let update = try params.decode(StateChanged.self)
-                    guard snapshot != nil else { throw SessionError.invalidMessage }
-                    snapshot?.sources = update.sources
-                    snapshot?.health = update.health
-                    snapshot?.diagnostic = update.diagnostic
+                    let update = try params.decode(SessionStateChanged.self)
+                    guard var next = catalog else { throw SessionError.invalidMessage }
+                    try next.apply(update)
+                    catalog = next
                 default: break
                 }
                 return
             }
             guard let number = message["id"]?.number, let id = Int(exactly: number) else { throw SessionError.invalidMessage }
             if let error = message["error"] {
-                let reason = error["message"]?.string ?? "The action failed."
+                let reason = error["message"]?.string ?? "The request failed."
                 if id <= 2 { disconnected(reason, token: token) }
-                else { finishAction(id); actionError = reason }
+                else { finish(id); actionError = reason }
                 return
             }
             guard let result = message["result"] else { throw SessionError.invalidMessage }
@@ -92,52 +102,68 @@ final class SessionStore: ObservableObject {
                 guard result["protocol_version"]?.number == Double(Wire.version) else { throw SessionError.incompatibleVersion }
                 send(id: 2, method: "session.subscribe", params: .object([:]))
             case 2:
-                try apply(result.decode(Snapshot.self))
+                try apply(result.decode(SessionSnapshot.self))
                 connected = true
                 connectionMessage = "Connected"
                 handshakeTimeout?.cancel()
-            default: finishAction(id)
+            default:
+                if actions[id] != nil {
+                    let completion = try result.decode(ActionCompletion.self)
+                    if completion.activeGeneration != completion.generation {
+                        actionError = "The action completed on a module version that is no longer active."
+                    }
+                }
+                finish(id)
             }
         } catch { disconnected("Couldn’t read the supervisor’s message: \(error.localizedDescription)", token: token) }
     }
-    private func apply(_ value: Snapshot) throws {
+    private func apply(_ value: SessionSnapshot) throws {
         guard value.protocolVersion == Wire.version else { throw SessionError.incompatibleVersion }
-        snapshot = value
+        try value.validate()
+        catalog = value
+        if let id = selectedModuleID, value.modules[id] == nil { selectedModuleID = nil }
     }
     func invoke(widget: SpiritglassCore.Widget) {
-        guard connected, snapshot?.health == "ready", let action = widget.action, !pendingActions.contains(widget.id) else { return }
+        guard connected, let module = selectedModule, module.phase == "ready", let action = widget.action, !isPending(widget.id) else { return }
         let id = nextID; nextID += 1
-        actions[id] = widget.id
-        pendingActions.insert(widget.id)
+        let key = "\(module.id)::\(widget.id)"
+        actions[id] = (key, module.id, module.generation)
+        pendingActions.insert(key)
         actionError = nil
-        send(id: id, method: "action.invoke", params: .object(["action": .string(action), "arguments": widget.arguments ?? .object([:])]))
-        actionTimeouts[id] = Task { [weak self] in
+        send(id: id, method: "action.invoke", params: .object(["module_id": .string(module.id), "action": .string(action), "arguments": widget.arguments ?? .object([:])]))
+        timeout(id)
+    }
+    func control(_ method: String, moduleID: String) {
+        guard connected, !busyModules.contains(moduleID) else { return }
+        let id = nextID; nextID += 1
+        controls[id] = moduleID; busyModules.insert(moduleID); actionError = nil
+        send(id: id, method: method, params: .object(["module_id": .string(moduleID)]))
+        timeout(id)
+    }
+    private func timeout(_ id: Int) {
+        timeouts[id] = Task { [weak self] in
             try? await Task.sleep(for: .seconds(8))
-            guard !Task.isCancelled, let self, actions[id] != nil else { return }
-            finishAction(id)
-            actionError = "The action timed out. Its completion is unknown."
+            guard !Task.isCancelled, let self else { return }
+            finish(id); actionError = "The request timed out. Its completion is unknown."
         }
     }
-    private func finishAction(_ id: Int) {
-        if let widget = actions.removeValue(forKey: id) { pendingActions.remove(widget) }
-        actionTimeouts.removeValue(forKey: id)?.cancel()
+    private func finish(_ id: Int) {
+        if let request = actions.removeValue(forKey: id) { pendingActions.remove(request.key) }
+        if let module = controls.removeValue(forKey: id) { busyModules.remove(module) }
+        timeouts.removeValue(forKey: id)?.cancel()
     }
-    private func clearActions() {
+    private func clearRequests() {
         if !actions.isEmpty { actionError = "The connection closed while an action was running. Its completion is unknown." }
-        actions.removeAll(); pendingActions.removeAll()
-        for task in actionTimeouts.values { task.cancel() }
-        actionTimeouts.removeAll()
+        actions.removeAll(); controls.removeAll(); pendingActions.removeAll(); busyModules.removeAll()
+        for task in timeouts.values { task.cancel() }
+        timeouts.removeAll()
     }
     private func disconnected(_ reason: String, token: UUID) {
         guard generation == token else { return }
         generation = UUID()
-        connected = false
-        connectionMessage = reason
+        connected = false; connectionMessage = reason
         connection?.close(); connection = nil
-        receiver?.cancel()
-        handshakeTimeout?.cancel()
-        clearActions()
-        reconnect?.cancel()
+        receiver?.cancel(); handshakeTimeout?.cancel(); clearRequests(); reconnect?.cancel()
         reconnect = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
@@ -148,6 +174,6 @@ final class SessionStore: ObservableObject {
 private enum SessionError: LocalizedError {
     case invalidMessage, incompatibleVersion
     var errorDescription: String? {
-        switch self { case .invalidMessage: "Invalid protocol message."; case .incompatibleVersion: "Incompatible protocol version." }
+        switch self { case .invalidMessage: "Invalid protocol message."; case .incompatibleVersion: "Incompatible client protocol. Update and restart the supervisor." }
     }
 }

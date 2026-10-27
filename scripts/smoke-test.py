@@ -26,16 +26,29 @@ class Session(Peer):
         self.snapshot = None
         super().__init__(self.reader, self.connection.sendall)
 
+    def call(self, method, params=None, **options):
+        if method == "action.invoke":
+            params = {"module_id": "local", **params}
+        value = super().call(method, params, **options)
+        return value["value"] if method == "action.invoke" and not options.get("allow_error") else value
+
     def subscribe(self):
-        self.call("initialize", {"protocol_versions": [1]})
-        self.snapshot = self.call("session.subscribe")
+        self.call("initialize", {"protocol_versions": [2]})
+        self.catalog = self.call("session.subscribe")
+        self.extract()
         return self
+
+    def extract(self):
+        self.snapshot = self.catalog["modules"].get("local", {}).get("state", {"health":"starting", "sources":{}, "module":None, "view":None})
 
     def notify(self, message):
         if message["method"] == "session.snapshot":
-            self.snapshot = message["params"]
+            self.catalog = message["params"]
         elif message["method"] == "state.changed":
-            self.snapshot.update(message["params"])
+            for module_id, update in message["params"]["modules"].items():
+                if module_id in self.catalog["modules"]:
+                    self.catalog["modules"][module_id]["state"].update(update)
+        self.extract()
 
     def wait(self, predicate):
         deadline = time.monotonic() + 8
@@ -146,7 +159,7 @@ class EndToEnd(unittest.TestCase):
         with Supervisor() as supervisor, Session(supervisor.path) as client:
             self.assertEqual(client.call("session.subscribe", allow_error=True)["error"]["code"], -32002)
             self.assertEqual(client.call("initialize", {"protocol_versions": [999]}, allow_error=True)["error"]["code"], -32001)
-            self.assertEqual(client.call("initialize", {"protocol_versions": [1]}), {"protocol_version": 1})
+            self.assertEqual(client.call("initialize", {"protocol_versions": [2]}), {"protocol_version": 2})
 
     def test_crash_and_invalid_state_retain_stale_values(self):
         for fixture in ("crash", "bad-state", "bad-json-after-start"):

@@ -120,11 +120,11 @@ struct AttentionPopover: View {
 
     private var explanation: String {
         if !session.connected { return "Supervisor disconnected. Last known values are marked stale." }
-        if session.snapshot?.health == "starting" { return "Connecting to your module’s live status…" }
-        if session.snapshot?.health != "ready" { return "Your module is unavailable. Last known values are marked stale." }
-        if summary.items.isEmpty { return "This dashboard hasn’t declared a status indicator." }
+        let active = session.catalog?.modules.values.filter { $0.enabled && $0.phase != "dormant" } ?? []
+        if active.isEmpty { return "No modules are currently monitoring. Install or start a module from the dashboard." }
         if summary.hasUnknown { return "Some monitoring is unknown or stale. Open the dashboard for details." }
-        return session.snapshot?.module?.name ?? "Live module status"
+        return "\(active.count) module\(active.count == 1 ? "" : "s") monitoring this Mac."
+
     }
 
     private func symbol(for item: AttentionItem) -> String {
@@ -162,8 +162,8 @@ final class StatusBarController: NSObject {
         popover.contentViewController = host
         popover.contentSize = NSSize(width: 340, height: 290)
         update(session.attention)
-        subscription = session.$snapshot.combineLatest(session.$connected)
-            .map { AttentionSummary.resolve(snapshot: $0, connected: $1) }
+        subscription = session.$catalog.combineLatest(session.$connected)
+            .map { AttentionSummary.resolve(catalog: $0, connected: $1) }
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] summary in self?.update(summary) }

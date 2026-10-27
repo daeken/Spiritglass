@@ -5,6 +5,7 @@ members = [
     "crates/spiritglass-sdk",
     "crates/spiritglassd",
     "examples/rust-module",
+    "modules/project-monitor",
 ]
 
 [workspace.package]

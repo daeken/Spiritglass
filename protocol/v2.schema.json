@@ -1,0 +1,1112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SessionProtocolCatalog",
+  "type": "object",
+  "properties": {
+    "action_invoke": {
+      "$ref": "#/$defs/SessionActionInvoke"
+    },
+    "action_result": {
+      "$ref": "#/$defs/SessionActionResult"
+    },
+    "initialize_params": {
+      "$ref": "#/$defs/InitializeParams"
+    },
+    "initialize_result": {
+      "$ref": "#/$defs/InitializeResult"
+    },
+    "manifest": {
+      "$ref": "#/$defs/ModuleManifest"
+    },
+    "message": {
+      "$ref": "#/$defs/Message"
+    },
+    "module_target": {
+      "$ref": "#/$defs/ModuleTarget"
+    },
+    "snapshot": {
+      "$ref": "#/$defs/SessionSnapshot"
+    },
+    "state_changed": {
+      "$ref": "#/$defs/SessionStateChanged"
+    }
+  },
+  "required": [
+    "message",
+    "initialize_params",
+    "initialize_result",
+    "snapshot",
+    "state_changed",
+    "module_target",
+    "action_invoke",
+    "action_result",
+    "manifest"
+  ],
+  "$defs": {
+    "ActionDefinition": {
+      "type": "object",
+      "properties": {
+        "arguments": {
+          "$ref": "#/$defs/DataType"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "arguments"
+      ]
+    },
+    "DataType": {
+      "description": "A deliberately small, closed schema vocabulary. Every object property is required.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "number"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "integer"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "items": {
+              "$ref": "#/$defs/DataType"
+            },
+            "type": {
+              "type": "string",
+              "const": "array"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "items"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "properties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/DataType"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "object"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "properties"
+          ]
+        }
+      ]
+    },
+    "Diagnostic": {
+      "type": "object",
+      "properties": {
+        "at_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "at_ms",
+        "message"
+      ]
+    },
+    "Failure": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/RpcError"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RpcId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "jsonrpc": {
+          "$ref": "#/$defs/RpcVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "jsonrpc",
+        "error"
+      ]
+    },
+    "InitializeParams": {
+      "type": "object",
+      "properties": {
+        "protocol_versions": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "protocol_versions"
+      ]
+    },
+    "InitializeResult": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "protocol_version"
+      ]
+    },
+    "LifecyclePolicy": {
+      "type": "string",
+      "enum": [
+        "always",
+        "on_demand"
+      ]
+    },
+    "ManagedModule": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "generation": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/LifecyclePolicy"
+        },
+        "name": {
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/ModulePhase"
+        },
+        "pid": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "reload_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reloading": {
+          "type": "boolean"
+        },
+        "restart_count": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "state": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "lifecycle",
+        "enabled",
+        "phase",
+        "generation",
+        "restart_count",
+        "reloading",
+        "history",
+        "state"
+      ]
+    },
+    "Message": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Request"
+        },
+        {
+          "$ref": "#/$defs/Notification"
+        },
+        {
+          "$ref": "#/$defs/Success"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ]
+    },
+    "ModuleDescription": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ActionDefinition"
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceDefinition"
+          }
+        },
+        "view_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "description",
+        "sources",
+        "actions",
+        "view_id"
+      ]
+    },
+    "ModuleHealth": {
+      "type": "string",
+      "enum": [
+        "starting",
+        "ready",
+        "unavailable"
+      ]
+    },
+    "ModuleManifest": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "executable": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/LifecyclePolicy",
+          "default": "always"
+        },
+        "name": {
+          "type": "string"
+        },
+        "stale_after_ms": {
+          "description": "Optional source freshness budget. A quiet process is not assumed healthy.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "watch": {
+          "description": "Additional files to watch, such as an interpreted module's script or DLL.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "working_directory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "executable"
+      ]
+    },
+    "ModulePhase": {
+      "type": "string",
+      "enum": [
+        "disabled",
+        "dormant",
+        "starting",
+        "ready",
+        "restarting",
+        "unavailable"
+      ]
+    },
+    "ModuleTarget": {
+      "type": "object",
+      "properties": {
+        "module_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "module_id"
+      ]
+    },
+    "Notification": {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "$ref": "#/$defs/RpcVersion"
+        },
+        "method": {
+          "type": "string"
+        },
+        "params": {
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "jsonrpc",
+        "method"
+      ]
+    },
+    "Property": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "literal"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "binding"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "source": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "source",
+            "path"
+          ]
+        }
+      ]
+    },
+    "Property2": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "literal"
+            },
+            "value": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "binding"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "source": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "source",
+            "path"
+          ]
+        }
+      ]
+    },
+    "Property3": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "literal"
+            },
+            "value": {
+              "$ref": "#/$defs/Status"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "binding"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "source": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "source",
+            "path"
+          ]
+        }
+      ]
+    },
+    "Request": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RpcId"
+        },
+        "jsonrpc": {
+          "$ref": "#/$defs/RpcVersion"
+        },
+        "method": {
+          "type": "string"
+        },
+        "params": {
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "jsonrpc",
+        "id",
+        "method"
+      ]
+    },
+    "RpcError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "RpcId": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "RpcVersion": {
+      "type": "string",
+      "enum": [
+        "2.0"
+      ]
+    },
+    "SessionActionInvoke": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "arguments": true,
+        "module_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "module_id",
+        "action",
+        "arguments"
+      ]
+    },
+    "SessionActionResult": {
+      "type": "object",
+      "properties": {
+        "active_generation": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "generation": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "value": true
+      },
+      "additionalProperties": false,
+      "required": [
+        "generation",
+        "value"
+      ]
+    },
+    "SessionSnapshot": {
+      "type": "object",
+      "properties": {
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        },
+        "modules": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ManagedModule"
+          }
+        },
+        "protocol_version": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "modules",
+        "diagnostics"
+      ]
+    },
+    "SessionStateChanged": {
+      "type": "object",
+      "properties": {
+        "modules": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/StateChanged"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "modules"
+      ]
+    },
+    "Snapshot": {
+      "type": "object",
+      "properties": {
+        "diagnostic": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "health": {
+          "$ref": "#/$defs/ModuleHealth"
+        },
+        "module": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModuleDescription"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protocol_version": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SourceState"
+          }
+        },
+        "view": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Widget"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "sources",
+        "health"
+      ]
+    },
+    "SourceDefinition": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "schema": {
+          "$ref": "#/$defs/DataType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "schema"
+      ]
+    },
+    "SourceState": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "status": {
+          "$ref": "#/$defs/SourceStatus"
+        },
+        "updated_at_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "value": true
+      },
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "status",
+        "revision",
+        "updated_at_ms"
+      ]
+    },
+    "SourceStatus": {
+      "type": "string",
+      "enum": [
+        "available",
+        "stale"
+      ]
+    },
+    "StateChanged": {
+      "type": "object",
+      "properties": {
+        "diagnostic": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "health": {
+          "$ref": "#/$defs/ModuleHealth"
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SourceState"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "sources",
+        "health"
+      ]
+    },
+    "Status": {
+      "type": "string",
+      "enum": [
+        "clear",
+        "notice",
+        "urgent",
+        "emergency",
+        "unknown"
+      ]
+    },
+    "Success": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RpcId"
+        },
+        "jsonrpc": {
+          "$ref": "#/$defs/RpcVersion"
+        },
+        "result": true
+      },
+      "additionalProperties": false,
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ]
+    },
+    "Widget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Widget"
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "v_stack"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "id",
+            "children"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Widget"
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "h_stack"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "id",
+            "children"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Widget"
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "card"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "id",
+            "title",
+            "children"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "text"
+            },
+            "value": {
+              "$ref": "#/$defs/Property"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "id",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "metric"
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/Property2"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "id",
+            "label",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "status"
+            },
+            "value": {
+              "$ref": "#/$defs/Property3"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "id",
+            "label",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string"
+            },
+            "arguments": true,
+            "id": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "button"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "id",
+            "label",
+            "action",
+            "arguments"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "divider"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "id"
+          ]
+        }
+      ]
+    }
+  }
+}

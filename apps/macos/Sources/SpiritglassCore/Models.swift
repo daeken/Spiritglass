@@ -43,7 +43,8 @@ public enum JSONValue: Codable, Equatable, Sendable {
 }
 
 public enum Wire {
-    public static let version = 1
+    public static let version = 2
+    public static let moduleVersion = 1
     public static let maximumMessageBytes = 1_048_576
     public static func decoder() -> JSONDecoder {
         let decoder = JSONDecoder()
@@ -93,6 +94,57 @@ public struct StateChanged: Decodable, Sendable {
     public let sources: [String: SourceState]
     public let health: String
     public let diagnostic: String?
+}
+public struct Diagnostic: Decodable, Sendable, Identifiable {
+    public let atMs: UInt64
+    public let message: String
+    public var id: String { "\(atMs):\(message)" }
+}
+public struct ManagedModule: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let name: String
+    public let lifecycle: String
+    public let enabled: Bool
+    public let phase: String
+    public let generation: UInt64
+    public let pid: Int?
+    public let restartCount: UInt32
+    public let reloading: Bool
+    public let reloadError: String?
+    public let history: [Diagnostic]
+    public var state: Snapshot
+}
+public struct SessionSnapshot: Decodable, Sendable {
+    public let protocolVersion: Int
+    public var modules: [String: ManagedModule]
+    public let diagnostics: [Diagnostic]
+    public var orderedModules: [ManagedModule] { modules.values.sorted { ($0.name, $0.id) < ($1.name, $1.id) } }
+    public func validate() throws {
+        guard protocolVersion == Wire.version, modules.count <= 32,
+              modules.allSatisfy({ $0.key == $0.value.id && $0.value.state.protocolVersion == Wire.moduleVersion }) else {
+            throw CatalogError.invalidSnapshot
+        }
+    }
+    public mutating func apply(_ update: SessionStateChanged) throws {
+        guard Set(update.modules.keys) == Set(modules.keys) else { throw CatalogError.invalidSnapshot }
+        for (id, state) in update.modules {
+            modules[id]?.state.sources = state.sources
+            modules[id]?.state.health = state.health
+            modules[id]?.state.diagnostic = state.diagnostic
+        }
+    }
+}
+private enum CatalogError: LocalizedError {
+    case invalidSnapshot
+    var errorDescription: String? { "Invalid module catalog or update." }
+}
+public struct SessionStateChanged: Decodable, Sendable {
+    public let modules: [String: StateChanged]
+}
+public struct ActionCompletion: Decodable, Sendable {
+    public let generation: UInt64
+    public let activeGeneration: UInt64?
+    public let value: JSONValue
 }
 public enum Availability: Equatable, Sendable { case ready, loading, unavailable, stale }
 public struct ResolvedValue: Sendable {

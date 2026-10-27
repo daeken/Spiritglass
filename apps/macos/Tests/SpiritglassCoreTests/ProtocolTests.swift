@@ -15,7 +15,7 @@ private func node(_ id: String, in widget: Widget) -> Widget? {
 
 @Test func decodesActualRustSnapshotAndResolvesBindings() throws {
     let snapshot = try fixture()
-    #expect(snapshot.protocolVersion == Wire.version)
+    #expect(snapshot.protocolVersion == Wire.moduleVersion)
     #expect(snapshot.module?.id == "dev.spiritglass.example")
     let root = try #require(snapshot.view)
     #expect(root.type == "v_stack")

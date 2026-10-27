@@ -1,4 +1,7 @@
-# Spiritglass protocol version 1
+# Spiritglass wire protocols
+
+Module stdio uses version **1**. The frontend/supervisor socket uses version **2**.
+The envelopes and module SDK remain compatible with the original release.
 
 ## Framing and envelopes
 
@@ -24,6 +27,9 @@ envelope, method parameter/result, dashboard node, and data declaration. The roo
 is a catalog, not a wire message: validate an envelope against `$defs/Message`,
 then validate its method-specific payload. Runtime semantic checks additionally
 verify binding paths/types, uniqueness, version support, and size/complexity limits.
+
+The multi-module client and manifest schema is protocol/v2.schema.json. The v1
+catalog also retains the historical single-module client shapes for reference.
 
 ## Supervisor → module
 
@@ -99,31 +105,86 @@ There is no expression evaluation, implicit dot syntax, or formatting language.
 Bindings must exist in the declared schema and match the property's type. An
 integer source can supply a numeric metric. Literal types are checked by decoding.
 
-## Frontend ↔ supervisor
+## Frontend ↔ supervisor (version 2)
+
+The client offers {"protocol_versions":[2]} on initialize. Version 1 clients
+receive an explicit compatibility error; version 1 modules continue working.
 
 | Method | Direction | Parameters/result |
 | --- | --- | --- |
-| `initialize` | Client request | Same version negotiation as modules |
-| `session.subscribe` | Client request | `{}` → complete `Snapshot` |
-| `session.snapshot` | Server notification | Complete `Snapshot` when declarations/view change |
-| `state.changed` | Server notification | Complete `sources`, `health`, `diagnostic`; no tree |
-| `action.invoke` | Client request | Same action payload/result as the module |
+| initialize | Client request | Protocol version 2 negotiation |
+| session.subscribe | Client request | {} → complete SessionSnapshot |
+| session.snapshot | Server notification | Complete session on membership/metadata/generation change |
+| state.changed | Server notification | All module source maps, without trees |
+| action.invoke | Client request | module_id, action, arguments → generation and value |
+| module.reload | Client request | module_id → accepted |
+| module.activate | Client request | module_id → accepted |
+| module.deactivate | Client request | module_id → accepted |
 
-`Snapshot` contains `protocol_version`, nullable `module` and `view`, `sources`,
-`health`, and nullable `diagnostic`. Health is `starting`, `ready`, or `unavailable`.
-Each source entry contains `value`, `status` (`available` or `stale`), `revision`,
-and `updated_at_ms` (Unix epoch milliseconds).
+A session snapshot contains protocol_version (2), modules (keyed by stable ID),
+and discovery diagnostics. Each ManagedModule contains:
 
-Subscribe returns the snapshot at a single point in the update sequence; later
-updates follow that response. Re-subscription is allowed. Updates can coalesce,
-so revisions need not be consecutive. No update history is guaranteed. Clients
-must treat all retained values as stale while disconnected and retrieve a new
-snapshot after reconnecting. An individual source without a published value is
-loading during startup, otherwise unavailable. State survives client disconnects
-and module failure, but not supervisor termination.
+- id, name, lifecycle, enabled.
+- phase: disabled, dormant, starting, ready, restarting, or unavailable.
+- generation: the current process-generation identifier; 0 before first promotion.
+- pid, restart_count, reloading, nullable reload_error, bounded history.
+- state: the retained module Snapshot, with protocol_version 1, nullable module
+  declaration and view, sources, health, and nullable diagnostic.
 
-The first slice supports one module, so action IDs are scoped to that module's
-connection. Multiple-module addressing will need an explicit protocol extension.
+The module-state wrapper preserves the v1 data/view vocabulary. Each source has
+value, status (available/stale), revision, and updated_at_ms. Revisions are scoped
+to a generation; use generation plus revision to distinguish replacement data.
+Generation identifiers are monotonic within one daemon, not business versions.
+
+The shared [session fixture](../protocol/fixtures/session.snapshot.json) is a
+complete real-process example decoded by both Rust and Swift tests.
+
+Source-only notifications have this shape:
+
+```json
+{"jsonrpc":"2.0","method":"state.changed","params":{"modules":{"dev.example.counter":{"sources":{},"health":"ready","diagnostic":null}}}}
+```
+
+Each included source map is complete. All currently installed modules are present.
+A client validates the module key set before atomically applying updates. A
+state-only update never fetches, decodes, or replaces a view tree.
+
+Explicitly addressed actions use:
+
+```json
+{"jsonrpc":"2.0","id":8,"method":"action.invoke","params":{"module_id":"dev.example.counter","action":"increment","arguments":{}}}
+{"jsonrpc":"2.0","id":8,"result":{"generation":4,"active_generation":4,"value":{"count":1}}}
+```
+
+Action IDs can be identical in different modules. The supervisor validates the
+active generation's action declaration. Calls accepted before promotion finish
+on their original process; stale-generation publications cannot overwrite current
+data. Completion reports its original generation and active_generation at response
+time (null if no active process remains), even if the client's metadata update
+has not arrived yet. No automatic replay occurs.
+
+Lifecycle controls return {"accepted":true} when accepted, not when validation
+or shutdown has finished. Watch snapshots for the resulting phase/generation.
+Reload also activates an enabled on-demand module. Deactivate is valid only for
+on-demand modules. Disabled modules reject controls until their manifest enables
+them.
+
+Subscribe returns a snapshot at a single point in the update sequence, followed
+by later notifications. Re-subscription is allowed. Updates may coalesce;
+revisions need not be consecutive. Reconnection restores current state without
+requiring republication. All retained values are stale while disconnected.
+
+## Manifests
+
+ModuleManifest requires id, name, and executable. Optional fields are args,
+working_directory, environment, lifecycle (always by default), enabled (true),
+watch (additional deployed paths), and stale_after_ms. Paths are relative to the
+manifest folder; there is no shell expansion. Unknown fields are rejected.
+
+The manifest and module declaration IDs must match. Disabled/dormant modules are
+visible but do not monitor. Source freshness is optional and must be between
+1000 and 86400000 milliseconds. See [module management](modules.md) for discovery,
+atomic deployment, recovery, and replacement semantics.
 
 ## Errors and deadlines
 
@@ -143,6 +204,6 @@ An accepted action may still complete after a client disconnect or timeout; neve
 automatically replay it. No exactly-once or cross-session deduplication is promised.
 
 Graceful shutdown allows one second for the response and another for process exit,
-then kills the process. A protocol failure marks sources stale and requires an
-explicit supervisor restart in this first slice. Automatic recovery, replacement
-handover semantics, and alerts are reserved for subsequent milestones.
+then kills the process. A protocol failure marks sources stale and triggers
+automatic recovery with backoff. Failed candidates preserve their live predecessor.
+Persisted alerts remain a subsequent milestone.

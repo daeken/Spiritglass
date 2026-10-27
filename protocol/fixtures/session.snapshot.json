@@ -1,0 +1,452 @@
+{
+  "diagnostics": [],
+  "modules": {
+    "dev.spiritglass.example": {
+      "enabled": true,
+      "generation": 1,
+      "history": [],
+      "id": "dev.spiritglass.example",
+      "lifecycle": "always",
+      "name": "Hello, Spiritglass",
+      "phase": "ready",
+      "pid": null,
+      "reload_error": null,
+      "reloading": false,
+      "restart_count": 0,
+      "state": {
+        "diagnostic": null,
+        "health": "ready",
+        "module": {
+          "actions": [
+            {
+              "arguments": {
+                "properties": {},
+                "type": "object"
+              },
+              "id": "increment"
+            },
+            {
+              "arguments": {
+                "properties": {},
+                "type": "object"
+              },
+              "id": "reset"
+            }
+          ],
+          "description": "A small window into a live, independent Rust process.",
+          "id": "dev.spiritglass.example",
+          "name": "Hello, Spiritglass",
+          "sources": [
+            {
+              "id": "overview",
+              "schema": {
+                "properties": {
+                  "count": {
+                    "type": "integer"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "uptime": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          ],
+          "view_id": "main"
+        },
+        "protocol_version": 1,
+        "sources": {
+          "overview": {
+            "revision": 1,
+            "status": "available",
+            "updated_at_ms": 0,
+            "value": {
+              "count": 0,
+              "message": "Ready when you are.",
+              "status": "clear",
+              "uptime": 0
+            }
+          }
+        },
+        "view": {
+          "children": [
+            {
+              "id": "intro",
+              "type": "text",
+              "value": {
+                "kind": "literal",
+                "value": "This dashboard comes from the module. Every control is rendered natively."
+              }
+            },
+            {
+              "children": [
+                {
+                  "id": "uptime",
+                  "label": "Time together",
+                  "type": "metric",
+                  "unit": "seconds",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "uptime"
+                    ],
+                    "source": "overview"
+                  }
+                },
+                {
+                  "id": "count",
+                  "label": "Actions received",
+                  "type": "metric",
+                  "unit": null,
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "count"
+                    ],
+                    "source": "overview"
+                  }
+                }
+              ],
+              "id": "metrics",
+              "type": "h_stack"
+            },
+            {
+              "children": [
+                {
+                  "id": "status",
+                  "label": "Example status",
+                  "type": "status",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "status"
+                    ],
+                    "source": "overview"
+                  }
+                },
+                {
+                  "id": "message",
+                  "type": "text",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "message"
+                    ],
+                    "source": "overview"
+                  }
+                },
+                {
+                  "children": [
+                    {
+                      "action": "increment",
+                      "arguments": {},
+                      "id": "increment",
+                      "label": "Send a little signal",
+                      "type": "button"
+                    },
+                    {
+                      "action": "reset",
+                      "arguments": {},
+                      "id": "reset",
+                      "label": "Reset",
+                      "type": "button"
+                    }
+                  ],
+                  "id": "controls",
+                  "type": "h_stack"
+                }
+              ],
+              "id": "playground",
+              "title": "A conversation with your module",
+              "type": "card"
+            },
+            {
+              "id": "hint",
+              "type": "text",
+              "value": {
+                "kind": "literal",
+                "value": "Send five signals to see the example status change. Close and reopen the window: the supervisor keeps the module alive."
+              }
+            }
+          ],
+          "id": "dashboard",
+          "type": "v_stack"
+        }
+      }
+    },
+    "dev.spiritglass.project": {
+      "enabled": true,
+      "generation": 2,
+      "history": [],
+      "id": "dev.spiritglass.project",
+      "lifecycle": "always",
+      "name": "Project watch",
+      "phase": "ready",
+      "pid": null,
+      "reload_error": null,
+      "reloading": false,
+      "restart_count": 0,
+      "state": {
+        "diagnostic": null,
+        "health": "ready",
+        "module": {
+          "actions": [
+            {
+              "arguments": {
+                "properties": {},
+                "type": "object"
+              },
+              "id": "refresh"
+            }
+          ],
+          "description": "A quiet, read-only watch on your local Git project.",
+          "id": "dev.spiritglass.project",
+          "name": "Project watch",
+          "sources": [
+            {
+              "id": "project",
+              "schema": {
+                "properties": {
+                  "ahead": {
+                    "type": "integer"
+                  },
+                  "behind": {
+                    "type": "integer"
+                  },
+                  "branch": {
+                    "type": "string"
+                  },
+                  "changed": {
+                    "type": "integer"
+                  },
+                  "checked": {
+                    "type": "string"
+                  },
+                  "last_commit": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "project": {
+                    "type": "string"
+                  },
+                  "staged": {
+                    "type": "integer"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "untracked": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          ],
+          "view_id": "main"
+        },
+        "protocol_version": 1,
+        "sources": {
+          "project": {
+            "revision": 1,
+            "status": "available",
+            "updated_at_ms": 0,
+            "value": {
+              "ahead": 0,
+              "behind": 0,
+              "branch": "Branch \u00b7 main",
+              "changed": 2,
+              "checked": "Checked 0 seconds ago \u00b7 local Git data only",
+              "last_commit": "abc123 \u00b7 Example commit",
+              "message": "You have local work in progress.",
+              "project": "/example/project",
+              "staged": 0,
+              "status": "notice",
+              "untracked": 2
+            }
+          }
+        },
+        "view": {
+          "children": [
+            {
+              "children": [
+                {
+                  "id": "project-path",
+                  "type": "text",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "project"
+                    ],
+                    "source": "project"
+                  }
+                },
+                {
+                  "id": "project-branch",
+                  "type": "text",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "branch"
+                    ],
+                    "source": "project"
+                  }
+                },
+                {
+                  "id": "project-status",
+                  "label": "Working tree",
+                  "type": "status",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "status"
+                    ],
+                    "source": "project"
+                  }
+                },
+                {
+                  "id": "project-message",
+                  "type": "text",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "message"
+                    ],
+                    "source": "project"
+                  }
+                }
+              ],
+              "id": "project-summary",
+              "title": "Your project, at a glance",
+              "type": "card"
+            },
+            {
+              "children": [
+                {
+                  "id": "changed",
+                  "label": "Changed files",
+                  "type": "metric",
+                  "unit": null,
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "changed"
+                    ],
+                    "source": "project"
+                  }
+                },
+                {
+                  "id": "staged",
+                  "label": "Staged",
+                  "type": "metric",
+                  "unit": null,
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "staged"
+                    ],
+                    "source": "project"
+                  }
+                },
+                {
+                  "id": "untracked",
+                  "label": "Untracked",
+                  "type": "metric",
+                  "unit": null,
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "untracked"
+                    ],
+                    "source": "project"
+                  }
+                }
+              ],
+              "id": "working-metrics",
+              "type": "h_stack"
+            },
+            {
+              "children": [
+                {
+                  "id": "ahead",
+                  "label": "Commits ahead",
+                  "type": "metric",
+                  "unit": null,
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "ahead"
+                    ],
+                    "source": "project"
+                  }
+                },
+                {
+                  "id": "behind",
+                  "label": "Commits behind",
+                  "type": "metric",
+                  "unit": null,
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "behind"
+                    ],
+                    "source": "project"
+                  }
+                }
+              ],
+              "id": "tracking-metrics",
+              "type": "h_stack"
+            },
+            {
+              "children": [
+                {
+                  "id": "last-commit",
+                  "type": "text",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "last_commit"
+                    ],
+                    "source": "project"
+                  }
+                },
+                {
+                  "id": "last-checked",
+                  "type": "text",
+                  "value": {
+                    "kind": "binding",
+                    "path": [
+                      "checked"
+                    ],
+                    "source": "project"
+                  }
+                },
+                {
+                  "action": "refresh",
+                  "arguments": {},
+                  "id": "refresh",
+                  "label": "Check project now",
+                  "type": "button"
+                }
+              ],
+              "id": "project-details",
+              "title": "Latest activity",
+              "type": "card"
+            }
+          ],
+          "id": "project-dashboard",
+          "type": "v_stack"
+        }
+      }
+    }
+  },
+  "protocol_version": 2
+}

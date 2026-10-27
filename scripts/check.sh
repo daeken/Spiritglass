@@ -8,4 +8,5 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo build --workspace
 cargo test --workspace
 python3 scripts/smoke-test.py
+python3 scripts/lifecycle-test.py
 swift test --package-path apps/macos

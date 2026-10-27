@@ -62,12 +62,12 @@ struct DashboardRenderer: View {
         case "button":
             Button { session.invoke(widget: widget) } label: {
                 HStack(spacing: 8) {
-                    if session.pendingActions.contains(widget.id) { ProgressView().controlSize(.mini) }
+                    if session.isPending(widget.id) { ProgressView().controlSize(.mini) }
                     Text(widget.label ?? "Run action")
                 }
             }
             .buttonStyle(.bordered).controlSize(.large)
-            .disabled(!session.connected || session.snapshot?.health != "ready" || session.pendingActions.contains(widget.id))
+            .disabled(!session.connected || session.snapshot?.health != "ready" || session.isPending(widget.id))
         case "divider": Divider()
         default:
             Label("Unsupported component: \(widget.type)", systemImage: "square.dashed")
