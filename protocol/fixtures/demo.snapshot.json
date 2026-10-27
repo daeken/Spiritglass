@@ -1,0 +1,166 @@
+{
+  "diagnostic": null,
+  "health": "ready",
+  "module": {
+    "actions": [
+      {
+        "arguments": {
+          "properties": {},
+          "type": "object"
+        },
+        "id": "increment"
+      },
+      {
+        "arguments": {
+          "properties": {},
+          "type": "object"
+        },
+        "id": "reset"
+      }
+    ],
+    "description": "A small window into a live, independent Rust process.",
+    "id": "dev.spiritglass.example",
+    "name": "Hello, Spiritglass",
+    "sources": [
+      {
+        "id": "overview",
+        "schema": {
+          "properties": {
+            "count": {
+              "type": "integer"
+            },
+            "message": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "uptime": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      }
+    ],
+    "view_id": "main"
+  },
+  "protocol_version": 1,
+  "sources": {
+    "overview": {
+      "revision": 1,
+      "status": "available",
+      "updated_at_ms": 0,
+      "value": {
+        "count": 0,
+        "message": "Ready when you are.",
+        "status": "clear",
+        "uptime": 0
+      }
+    }
+  },
+  "view": {
+    "children": [
+      {
+        "id": "intro",
+        "type": "text",
+        "value": {
+          "kind": "literal",
+          "value": "This dashboard comes from the module. Every control is rendered natively."
+        }
+      },
+      {
+        "children": [
+          {
+            "id": "uptime",
+            "label": "Time together",
+            "type": "metric",
+            "unit": "seconds",
+            "value": {
+              "kind": "binding",
+              "path": [
+                "uptime"
+              ],
+              "source": "overview"
+            }
+          },
+          {
+            "id": "count",
+            "label": "Actions received",
+            "type": "metric",
+            "unit": null,
+            "value": {
+              "kind": "binding",
+              "path": [
+                "count"
+              ],
+              "source": "overview"
+            }
+          }
+        ],
+        "id": "metrics",
+        "type": "h_stack"
+      },
+      {
+        "children": [
+          {
+            "id": "status",
+            "label": "Example status",
+            "type": "status",
+            "value": {
+              "kind": "binding",
+              "path": [
+                "status"
+              ],
+              "source": "overview"
+            }
+          },
+          {
+            "id": "message",
+            "type": "text",
+            "value": {
+              "kind": "binding",
+              "path": [
+                "message"
+              ],
+              "source": "overview"
+            }
+          },
+          {
+            "children": [
+              {
+                "action": "increment",
+                "arguments": {},
+                "id": "increment",
+                "label": "Send a little signal",
+                "type": "button"
+              },
+              {
+                "action": "reset",
+                "arguments": {},
+                "id": "reset",
+                "label": "Reset",
+                "type": "button"
+              }
+            ],
+            "id": "controls",
+            "type": "h_stack"
+          }
+        ],
+        "id": "playground",
+        "title": "A conversation with your module",
+        "type": "card"
+      },
+      {
+        "id": "hint",
+        "type": "text",
+        "value": {
+          "kind": "literal",
+          "value": "Send five signals to see the example status change. Close and reopen the window: the supervisor keeps the module alive."
+        }
+      }
+    ],
+    "id": "dashboard",
+    "type": "v_stack"
+  }
+}

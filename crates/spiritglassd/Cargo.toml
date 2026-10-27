@@ -1,0 +1,19 @@
+[package]
+name = "spiritglassd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+fs2.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+spiritglass-protocol.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
